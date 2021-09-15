@@ -1,6 +1,8 @@
 import os
 import sys
 import random
+import re
+import subprocess
 
 import numpy as np
 from scipy.io import wavfile
@@ -66,14 +68,16 @@ def convert(input):
 def createWave(dur, freq, ampl, sampleRate):
     t = np.linspace(0, dur, int(sampleRate * dur), endpoint=False)
     return ampl * np.iinfo(np.int16).max * np.sin(freq * 2 * np.pi * t)
+    
+def getJitter(jitter, dur):
+    return dur + random.uniform(-1 * jitter * dur, jitter * dur)
 
-def morseToWav(wpm, freq, noise, message):
-    sampleRate = 8000 #.wav stuff
-    amp_high = 0.5
+def morseToWav(wpm, freq, noise, amp, bandwidth, sampleRate, jitter, filename, message):
+    #sampleRate = 8000 #.wav stuff
+    amp_high = amp #0.5
     amp_low = 0.0001
-    bandw = 20 #filter params
+    bandw = bandwidth #20 #filter params
     degree = 2
-    #noise = 100 #noise param
 
     DIT = 1
     DAH = 3
@@ -88,14 +92,14 @@ def morseToWav(wpm, freq, noise, message):
                 dur = 0
                 
                 if sym == '.':
-                    dur = BEAT * DIT
+                    dur = getJitter(jitter, BEAT * DIT)
                 elif sym == '-':
-                    dur = BEAT * DAH
+                    dur = getJitter(jitter, BEAT * DAH)
                 
                 sections.append(createWave(dur, freq, amp_high, sampleRate))
-                sections.append(createWave(BEAT * DIT, freq, amp_low, sampleRate)) #do space
-            sections.append(createWave(BEAT * (DAH - DIT), freq, amp_low, sampleRate)) #do inter-char
-        sections.append(createWave(BEAT * (BREAK - DAH - DIT), freq, amp_low, sampleRate)) #do inter-word
+                sections.append(createWave(getJitter(jitter, BEAT * DIT), freq, amp_low, sampleRate)) #do space
+            sections.append(createWave(getJitter(jitter, BEAT * (SPACE - DIT)), freq, amp_low, sampleRate)) #do inter-char
+        sections.append(createWave(getJitter(jitter, BEAT * (BREAK - SPACE - DIT)), freq, amp_low, sampleRate)) #do inter-word
 
     #post-processing
     wave = []
@@ -108,6 +112,44 @@ def morseToWav(wpm, freq, noise, message):
     wave = wave + np.random.normal(0, noise, wave.shape).astype(np.int16) #apply noise
 
     #write to file
-    wavfile.write("sin.wav", sampleRate, wave)
+    wavfile.write(filename, sampleRate, wave)
+
+
+def main():
+    f = open(sys.argv[1], "r")
+    dest = sys.argv[2]
     
-morseToWav(int(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3]), str(sys.argv[4]))
+    data = f.read().replace('\n', ' ').replace('\t', '').lower()
+    data = re.sub(' +', ' ', data)
+    
+    blocksize = 32
+    
+    for i in range(len(data) // blocksize):
+        wpm = random.randint(7, 35)
+        freq = random.randint(100, 4000)
+        noise = random.randint(0, 4800)
+        amp = random.uniform(0.1, 0.9)
+        sampleRate = 8000
+        bandw = random.randint(1, 20) * 10
+        jitter = random.uniform(0, 0.3)
+        
+        text = data[i * blocksize:(i * blocksize) + blocksize].lstrip()
+        
+        print("{} {} {} {} {} {} {} {}".format(wpm, freq, noise, amp, bandw, sampleRate, jitter, text))
+        
+        morseToWav(wpm, freq, noise, amp, bandw, sampleRate, jitter, "temp.wav", text)
+        
+        try:
+            flist = [int(i.split('_')[0]) for i in os.listdir(dest)]
+            flist.sort()
+            nameIndex = flist[-1] + 1
+        except IndexError:
+            nameIndex = 0
+            
+        subprocess.call(['python', 'audiotospec.py', 'temp.wav', '{}'.format(dest)], shell = True) #run conversion script
+        os.remove("temp.wav") #delete temporary .wav
+    
+if __name__ == "__main__":
+    main()
+
+#morseToWav(float(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]), float(sys.argv[6]), str(sys.argv[7]))
