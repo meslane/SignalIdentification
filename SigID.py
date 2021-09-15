@@ -10,7 +10,7 @@ print("TensorFlow version: {}".format(tf.__version__))
 
 RATE = 8000
 DURATION = 3
-MODEL_NAME = "model2" 
+MODEL_NAME = "models/model6" 
 
 model = tf.keras.models.load_model(MODEL_NAME)
 
@@ -19,6 +19,7 @@ def predictLocalImage(model, image, categories):
     iarray = tf.expand_dims(iarray, 0)
 
     predict = model.predict(iarray)
+    #print(predict)
     score = tf.nn.softmax(predict[0])
     
     return (categories[np.argmax(score)], 100 * np.max(score))
@@ -35,8 +36,9 @@ while True:
     temp = cv.imread('temp.png')
     temp = temp [60:425, 82:574] #crop to remove graph stuff
     temp = cv.cvtColor(temp, cv.COLOR_BGR2GRAY)
+    temp = cv.resize(temp, (492 // 2, 365 // 2))
     
-    result = predictLocalImage(model, temp, ["CW", "FT8", "Voice"])
+    result = predictLocalImage(model, temp, ["CW", "FT8"])
     
     print("Signal is {} with {}% confidence".format(result[0], result[1]))
     

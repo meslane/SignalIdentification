@@ -3,13 +3,14 @@ import os
 import sys
 import tensorflow as tf
 
-batch_size = 64
-height = 365
-width = 492
+batch_size = 32
+height = 365 // 2
+width = 492 // 2
 seed = 314159
 split = 0.2
 epoch_size = int(sys.argv[3])
 overtrain_patience = 4
+learn_rate = 1e-05
 
 os.add_dll_directory("C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v11.4/bin") 
 os.environ["TF_GPU_ALLOCATOR"] = "cuda_malloc_async"
@@ -58,20 +59,24 @@ class_size = len(names)
 
 model = tf.keras.Sequential([
     tf.keras.layers.experimental.preprocessing.Rescaling(1./255, input_shape = (height, width, 1)),
+    tf.keras.layers.Conv2D(4, kernel_size = (3,3), activation = 'relu'),
+    tf.keras.layers.MaxPooling2D(),
     tf.keras.layers.Conv2D(8, kernel_size = (3,3), activation = 'relu'),
     tf.keras.layers.MaxPooling2D(),
     tf.keras.layers.Conv2D(16, kernel_size = (3,3), activation = 'relu'),
     tf.keras.layers.MaxPooling2D(),
     tf.keras.layers.Conv2D(32, kernel_size = (3,3), activation = 'relu'),
     tf.keras.layers.MaxPooling2D(),
-    #tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dropout(0.1),
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(32, activation = 'relu'),
-    #tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dropout(0.2),
     tf.keras.layers.Dense(class_size)
 ])
 
-model.compile(optimizer='adam',
+opt = tf.keras.optimizers.Adam(learning_rate = learn_rate)
+
+model.compile(optimizer=opt,
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=['accuracy'])
 
@@ -85,5 +90,6 @@ history = model.fit(
     batch_size = batch_size,
     validation_data = val,
     epochs = epoch_size,
-    callbacks = [stoptraining, savemodel]
+    callbacks = [stoptraining, savemodel],
+    shuffle = True
 )

@@ -1,5 +1,6 @@
 Data
 Raw
+models
 *.exe
-model1
-model2
+*.wav
+*.png

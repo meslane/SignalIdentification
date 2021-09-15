@@ -126,11 +126,11 @@ def main():
     
     for i in range(len(data) // blocksize):
         wpm = random.randint(7, 35)
-        freq = random.randint(100, 4000)
-        noise = random.randint(0, 4800)
+        freq = random.randint(100, 3900)
+        noise = 0#10 #random.randint(0, 10)
         amp = random.uniform(0.1, 0.9)
+        bandw = random.randint(1, 10) * 10
         sampleRate = 8000
-        bandw = random.randint(1, 20) * 10
         jitter = random.uniform(0, 0.3)
         
         text = data[i * blocksize:(i * blocksize) + blocksize].lstrip()
